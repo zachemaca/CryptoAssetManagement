@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CryptoAssetManagement is Ownable {
+    // Mapping to track user balances
+    mapping(address => mapping(address => uint256)) private balances;
+
+    // Events
+    event Deposit(address indexed token, address indexed user, uint256 amount);
+    event Withdrawal(address indexed token, address indexed user, uint256 amount);
+    event Transfer(address indexed token, address indexed from, address indexed to, uint256 amount);
+
+    // Deposit ERC20 tokens
+    function deposit(address token, uint256 amount) external {
+        require(amount > 0, "Deposit amount must be greater than 0");
+
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        balances[token][msg.sender] += amount;
+
+        emit Deposit(token, msg.sender, amount);
+    }
+
+    // Withdraw ERC20 tokens
+    function withdraw(address token, uint256 amount) external {
+        require(balances[token][msg.sender] >= amount, "Insufficient balance");
+
+        balances[token][msg.sender] -= amount;
+        IERC20(token).transfer(msg.sender, amount);
+
+        emit Withdrawal(token, msg.sender, amount);
+    }
+
+    // Transfer ERC20 tokens to another user
+    function transfer(address token, address to, uint256 amount) external {
+        require(balances[token][msg.sender] >= amount, "Insufficient balance");
+
+        balances[token][msg.sender] -= amount;
+        balances[token][to] += amount;
+
+        emit Transfer(token, msg.sender, to, amount);
+    }
+
+    // Get token balance of a user
+    function balanceOf(address token, address user) external view returns (uint256) {
+        return balances[token][user];
+    }
+
+    // Withdraw ETH from the contract (only owner)
+    function withdrawETH() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    // Receive ETH payments
+    receive() external payable {}
+
+    // Fallback function
+    fallback() external payable {}
+
+    // Reject ETH payments
+    function reject() external {
+        revert("ETH not accepted");
+    }
+}
